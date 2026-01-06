@@ -245,7 +245,7 @@ export function VideoPlayer({
                     {question.answer && (
                       <div className="bg-green-50 border border-green-200 rounded-md p-2 mt-2">
                         <p className="text-xs font-medium text-green-800 mb-1">
-                          Teacher's Answer:
+                          Teacher&apos;s Answer:
                         </p>
                         <p className="text-sm text-green-900">{question.answer}</p>
                       </div>
