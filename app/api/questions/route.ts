@@ -7,6 +7,7 @@ import { z } from 'zod'
 const questionSchema = z.object({
   content: z.string().min(1),
   videoId: z.string(),
+  courseId: z.string(),
 })
 
 const answerSchema = z.object({
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { content, videoId } = questionSchema.parse(body)
+    const { content, videoId, courseId } = questionSchema.parse(body)
 
     // Verify video access
     const video = await prisma.video.findUnique({
@@ -139,6 +140,7 @@ export async function POST(request: Request) {
       data: {
         content,
         videoId,
+        courseId,
         studentId: session.user.id,
       },
       include: {
