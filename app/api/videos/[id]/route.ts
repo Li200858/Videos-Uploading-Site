@@ -101,7 +101,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!videoId) {
+   const videoId = params?.id;
+
+if (!videoId) {
   return NextResponse.json({ error: "Missing videoId" }, { status: 400 });
 }
 
@@ -109,7 +111,6 @@ const video = await prisma.video.findUnique({
   where: { id: videoId },
   include: { course: true },
 });
-
 
     if (!video) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
