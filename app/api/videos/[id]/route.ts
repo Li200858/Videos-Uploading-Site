@@ -101,7 +101,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-   const videoId = params?.id;
+   const videoId = params?.id ?? undefined;
+
+const videoId = params?.id ?? undefined;
 
 if (!videoId) {
   return NextResponse.json({ error: "Missing videoId" }, { status: 400 });
