@@ -71,7 +71,7 @@ export async function GET(
     }
 
     // Get user's notes for this video
-  let notes: Note[] = []
+    let notes: Note[] = []
     if (session.user.role === 'STUDENT') {
       notes = await prisma.note.findMany({
         where: {
@@ -101,18 +101,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-   const videoId = params?.id ?? undefined;
+    const videoId = params?.id
+    if (!videoId || typeof videoId !== 'string') {
+      return NextResponse.json({ error: 'Missing videoId' }, { status: 400 })
+    }
 
-const videoId = params?.id ?? undefined;
-
-if (!videoId) {
-  return NextResponse.json({ error: "Missing videoId" }, { status: 400 });
-}
-
-const video = await prisma.video.findUnique({
-  where: { id: videoId },
-  include: { course: true },
-});
+    const video = await prisma.video.findUnique({
+      where: { id: videoId },
+      include: { course: true },
+    })
 
     if (!video) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
@@ -123,7 +120,7 @@ const video = await prisma.video.findUnique({
     }
 
     await prisma.video.delete({
-      where: { id: params.id },
+      where: { id: videoId },
     })
 
     return NextResponse.json({ message: 'Video deleted successfully' })
@@ -134,4 +131,5 @@ const video = await prisma.video.findUnique({
     )
   }
 }
+
 
