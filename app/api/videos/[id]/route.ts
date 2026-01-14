@@ -1,8 +1,8 @@
 import { Note } from "@prisma/client"
-import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(
   request: Request,
@@ -11,7 +11,7 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const video = await prisma.video.findUnique({
@@ -42,21 +42,24 @@ export async function GET(
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         },
       },
     })
 
     if (!video) {
-      return NextResponse.json({ error: 'Video not found' }, { status: 404 })
+      return NextResponse.json({ error: "Video not found" }, { status: 404 })
     }
 
     // Check access
-    if (session.user.role === 'TEACHER' && video.course.teacherId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (
+      session.user.role === "TEACHER" &&
+      video.course.teacherId !== session.user.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    if (session.user.role === 'STUDENT') {
+    if (session.user.role === "STUDENT") {
       const hasAccess = await prisma.studentInvite.findFirst({
         where: {
           courseId: video.courseId,
@@ -66,26 +69,26 @@ export async function GET(
       })
 
       if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
     }
 
     // Get user's notes for this video
     let notes: Note[] = []
-    if (session.user.role === 'STUDENT') {
+    if (session.user.role === "STUDENT") {
       notes = await prisma.note.findMany({
         where: {
           videoId: params.id,
           studentId: session.user.id,
         },
-        orderBy: { timestamp: 'asc' },
+        orderBy: { timestamp: "asc" },
       })
     }
 
     return NextResponse.json({ ...video, userNotes: notes })
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     )
   }
@@ -93,17 +96,21 @@ export async function GET(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id?: string | null } }
 ) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== 'TEACHER') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session || session.user.role !== "TEACHER") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const videoId = params?.id
-    if (!videoId || typeof videoId !== 'string') {
-      return NextResponse.json({ error: 'Missing videoId' }, { status: 400 })
+    // ✅ Handle null/undefined safely
+    const videoId = params?.id ?? undefined
+    if (!videoId) {
+      return NextResponse.json(
+        { error: "Missing or invalid videoId" },
+        { status: 400 }
+      )
     }
 
     const video = await prisma.video.findUnique({
@@ -112,24 +119,22 @@ export async function DELETE(
     })
 
     if (!video) {
-      return NextResponse.json({ error: 'Video not found' }, { status: 404 })
+      return NextResponse.json({ error: "Video not found" }, { status: 404 })
     }
 
     if (video.course.teacherId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     await prisma.video.delete({
       where: { id: videoId },
     })
 
-    return NextResponse.json({ message: 'Video deleted successfully' })
+    return NextResponse.json({ message: "Video deleted successfully" })
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     )
   }
 }
-
-
