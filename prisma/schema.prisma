@@ -163,6 +163,5 @@ model StudentInvite {
   course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdBy User   @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
 
-  @@index([token])
   @@index([email, courseId])
 }
