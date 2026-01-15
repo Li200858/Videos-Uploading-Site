@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -16,7 +16,7 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   email     String   @unique
   password  String
   name      String
@@ -49,13 +49,13 @@ enum FeedbackCategory {
 }
 
 model Feedback {
-  id          String           @id @default(cuid())
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String
   category    FeedbackCategory
   status      FeedbackStatus   @default(OPEN)
-  userId      String
-  courseId    String?
+  userId      String           @db.ObjectId
+  courseId    String?          @db.ObjectId
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -69,10 +69,10 @@ model Feedback {
 }
 
 model Course {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  teacherId   String
+  teacherId   String   @db.ObjectId
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -86,10 +86,10 @@ model Course {
 }
 
 model Video {
-  id           String   @id @default(cuid())
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   title        String
   description  String?
-  courseId     String
+  courseId     String   @db.ObjectId
   fileUrl      String
   thumbnailUrl String?
   duration     Int?
@@ -103,10 +103,10 @@ model Video {
 }
 
 model Worksheet {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  courseId    String
+  courseId    String   @db.ObjectId
   fileUrl     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -116,12 +116,12 @@ model Worksheet {
 }
 
 model Question {
-  id         String    @id @default(cuid())
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   content    String
-  courseId   String
-  videoId    String
-  studentId  String
-  teacherId  String?
+  courseId   String    @db.ObjectId
+  videoId    String    @db.ObjectId
+  studentId  String    @db.ObjectId
+  teacherId  String?   @db.ObjectId
   answer     String?
   createdAt  DateTime  @default(now())
   answeredAt DateTime?
@@ -134,11 +134,11 @@ model Question {
 }
 
 model Note {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   content   String
   timestamp Int
-  videoId   String
-  studentId String
+  videoId   String   @db.ObjectId
+  studentId String   @db.ObjectId
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -150,14 +150,14 @@ model Note {
 }
 
 model StudentInvite {
-  id              String    @id @default(cuid())
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
   email           String
-  courseId        String
+  courseId        String    @db.ObjectId
   token           String    @unique
   expiresAt       DateTime
   usedAt          DateTime?
   createdAt       DateTime  @default(now())
-  createdByUserId String
+  createdByUserId String    @db.ObjectId
 
   // Relations
   course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
