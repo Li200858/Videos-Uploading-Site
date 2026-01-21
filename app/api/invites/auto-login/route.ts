@@ -48,12 +48,8 @@ export async function POST(request: Request) {
 
     // If user doesn't exist, create account
     if (!user) {
-      if (!name) {
-        return NextResponse.json(
-          { error: 'Name is required to create account' },
-          { status: 400 }
-        )
-      }
+      // Use provided name, or generate from email (part before @)
+      const userName = name || invite.email.split('@')[0] || 'Student'
 
       // Generate a random password (user won't need it, but required for database)
       const randomPassword = randomBytes(32).toString('hex')
@@ -61,7 +57,7 @@ export async function POST(request: Request) {
 
       user = await prisma.user.create({
         data: {
-          name,
+          name: userName,
           email: invite.email,
           password: hashedPassword,
           role: 'STUDENT',

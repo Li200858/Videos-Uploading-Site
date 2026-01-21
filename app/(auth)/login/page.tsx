@@ -59,9 +59,8 @@ function LoginForm() {
           // Account exists, auto-login immediately
           await handleAutoLogin(token, email)
         } else {
-          // Account doesn't exist, show name input only
-          setShowRegister(true)
-          toast.success(`欢迎加入课程：${data.courseTitle}`)
+          // Account doesn't exist, auto-create and login
+          await handleAutoCreateAndLogin(token, email)
         }
       } else {
         toast.error(data.error || '邀请链接无效')
@@ -107,6 +106,58 @@ function LoginForm() {
     } catch (error: any) {
       console.error('Auto login failed:', error)
       toast.error('自动登录失败，请重试')
+    }
+  }
+
+  const handleAutoCreateAndLogin = async (token: string, email: string) => {
+    try {
+      // Generate a default name from email (use part before @)
+      const defaultName = email.split('@')[0] || 'Student'
+
+      // Auto-create account and login
+      const response = await fetch('/api/invites/auto-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, name: defaultName }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '自动创建账号失败')
+      }
+
+      toast.success('账号创建成功！正在登录...')
+
+      // Auto login using inviteToken
+      const result = await signIn('credentials', {
+        email: data.email,
+        password: '',
+        inviteToken: token,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        throw new Error('账号创建成功但登录失败')
+      }
+
+      // Mark invite as used after successful login
+      try {
+        await fetch('/api/invites/accept-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        })
+      } catch (error) {
+        // Ignore errors, invite might already be used
+      }
+
+      toast.success('登录成功！')
+      router.push('/')
+      router.refresh()
+    } catch (error: any) {
+      console.error('Auto create and login failed:', error)
+      toast.error(error.message || '自动创建账号失败，请重试')
     }
   }
 
