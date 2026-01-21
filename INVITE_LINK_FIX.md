@@ -13,7 +13,7 @@
 3. 进入 "Environment" 标签
 4. 添加或更新环境变量：
    ```
-   NEXTAUTH_URL=https://your-app-name.onrender.com
+   NEXTAUTH_URL=https://videos-uploading-site-kfha.onrender.com
    ```
    或者如果您有自定义域名：
    ```
@@ -33,7 +33,7 @@ npm install
 node scripts/create-test-invite.js <学生邮箱> <课程ID> <域名>
 
 # 示例：
-node scripts/create-test-invite.js student@example.com <course-id> https://your-app.onrender.com
+node scripts/create-test-invite.js student@example.com <course-id> https://videos-uploading-site-kfha.onrender.com
 ```
 
 ### 方案三：检查请求头
