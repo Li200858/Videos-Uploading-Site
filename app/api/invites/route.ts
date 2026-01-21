@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { randomBytes } from 'crypto'
 import { z } from 'zod'
+import { sendInviteEmail } from '@/lib/email'
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -13,8 +14,12 @@ const inviteSchema = z.object({
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== 'TEACHER') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session) {
+      return NextResponse.json({ error: '未登录，请先登录' }, { status: 401 })
+    }
+    
+    if (session.user.role !== 'TEACHER') {
+      return NextResponse.json({ error: '权限不足，只有教师可以创建邀请' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -26,11 +31,51 @@ export async function POST(request: Request) {
     })
 
     if (!course) {
-      return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+      return NextResponse.json({ error: '课程不存在' }, { status: 404 })
     }
 
     if (course.teacherId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json({ error: '无权访问此课程' }, { status: 403 })
+    }
+
+    // Check if invite already exists for this email and course
+    const existingInvite = await prisma.studentInvite.findFirst({
+      where: {
+        email,
+        courseId,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    })
+
+    if (existingInvite) {
+      const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/invite/${existingInvite.token}`
+      
+      // Optionally resend email for existing invite
+      const course = await prisma.course.findUnique({
+        where: { id: courseId },
+      })
+      
+      if (course) {
+        sendInviteEmail({
+          to: email,
+          inviteUrl,
+          courseTitle: course.title,
+          courseDescription: course.description,
+          expiresAt: existingInvite.expiresAt,
+        }).catch((error) => {
+          console.error('Failed to resend invite email:', error)
+        })
+      }
+      
+      return NextResponse.json(
+        { 
+          ...existingInvite, 
+          inviteUrl,
+          message: '此邮箱已存在未使用的邀请，已重新发送邮件',
+        },
+        { status: 200 }
+      )
     }
 
     // Generate unique token
@@ -51,20 +96,36 @@ export async function POST(request: Request) {
     // Return invite with URL
     const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/invite/${token}`
 
+    console.log('Invite created:', { id: invite.id, email, courseId, inviteUrl })
+
+    // Send email invitation (don't wait for it to complete)
+    sendInviteEmail({
+      to: email,
+      inviteUrl,
+      courseTitle: course.title,
+      courseDescription: course.description,
+      expiresAt: invite.expiresAt,
+    }).catch((error) => {
+      console.error('Failed to send invite email:', error)
+      // Don't fail the request if email fails
+    })
+
     return NextResponse.json(
-      { ...invite, inviteUrl },
+      { ...invite, inviteUrl, emailSent: true },
       { status: 201 }
     )
   } catch (error: any) {
+    console.error('Error creating invite:', error)
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
+        { error: '输入格式错误', details: error.errors },
         { status: 400 }
       )
     }
 
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error.message || '服务器错误，请稍后重试' },
       { status: 500 }
     )
   }

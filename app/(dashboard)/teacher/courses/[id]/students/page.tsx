@@ -33,11 +33,16 @@ export default function ManageStudentsPage() {
   const fetchInvites = async () => {
     try {
       const response = await fetch(`/api/invites?courseId=${courseId}`)
-      if (!response.ok) throw new Error('Failed to fetch invites')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `Failed to fetch invites: ${response.status}`)
+      }
       const data = await response.json()
       setInvites(data)
     } catch (error: any) {
-      toast.error(error.message)
+      console.error('Error fetching invites:', error)
+      toast.error(error.message || '加载邀请列表失败')
+      setInvites([]) // 确保设置为空数组，避免显示旧数据
     } finally {
       setLoading(false)
     }
@@ -45,25 +50,43 @@ export default function ManageStudentsPage() {
 
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!email.trim()) {
+      toast.error('请输入学生邮箱地址')
+      return
+    }
+
     setCreating(true)
 
     try {
       const response = await fetch('/api/invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, courseId }),
+        body: JSON.stringify({ email: email.trim(), courseId }),
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to create invite')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        const errorMessage = errorData.error || `创建邀请失败: ${response.status}`
+        console.error('Error creating invite:', errorData)
+        throw new Error(errorMessage)
       }
 
-      toast.success('Invitation created successfully!')
+      const data = await response.json()
+      console.log('Invite created successfully:', data)
+      
+      if (data.message) {
+        toast.success(data.message)
+      } else {
+        toast.success('邀请创建成功！邮件已发送到学生邮箱。')
+      }
       setEmail('')
-      fetchInvites()
+      
+      // 重新获取邀请列表
+      await fetchInvites()
     } catch (error: any) {
-      toast.error(error.message)
+      console.error('Error in handleCreateInvite:', error)
+      toast.error(error.message || '创建邀请失败，请重试')
     } finally {
       setCreating(false)
     }
@@ -72,6 +95,27 @@ export default function ManageStudentsPage() {
   const copyInviteUrl = (url: string) => {
     navigator.clipboard.writeText(url)
     toast.success('Invite URL copied to clipboard!')
+  }
+
+  const handleResendEmail = async (inviteId: string) => {
+    try {
+      const response = await fetch('/api/invites/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend email')
+      }
+
+      toast.success('邮件已重新发送！')
+    } catch (error: any) {
+      console.error('Error resending email:', error)
+      toast.error(error.message || '重新发送邮件失败')
+    }
   }
 
   if (loading) {
@@ -129,12 +173,20 @@ export default function ManageStudentsPage() {
                   )}
                 </div>
                 {!invite.usedAt && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => copyInviteUrl(invite.inviteUrl)}
-                  >
-                    Copy Link
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => copyInviteUrl(invite.inviteUrl)}
+                    >
+                      Copy Link
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleResendEmail(invite.id)}
+                    >
+                      Resend Email
+                    </Button>
+                  </div>
                 )}
               </div>
             ))}
