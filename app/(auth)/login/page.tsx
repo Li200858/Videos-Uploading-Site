@@ -57,8 +57,10 @@ function LoginForm() {
         })
         
         if (data.userExists) {
-          toast.success(`账号已存在，请使用密码登录`)
+          // Account exists, auto-login immediately
+          await handleAutoLogin(token, email)
         } else {
+          // Account doesn't exist, show name input only
           setShowRegister(true)
           toast.success(`欢迎加入课程：${data.courseTitle}`)
         }
@@ -72,6 +74,40 @@ function LoginForm() {
       setInviteToken(null)
     } finally {
       setVerifyingInvite(false)
+    }
+  }
+
+  const handleAutoLogin = async (token: string, email: string) => {
+    try {
+      // Login using inviteToken (no password needed)
+      const result = await signIn('credentials', {
+        email,
+        password: '', // Empty password for invite-based login
+        inviteToken: token,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        throw new Error('自动登录失败')
+      }
+
+      // Mark invite as used after successful login
+      try {
+        await fetch('/api/invites/accept-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        })
+      } catch (error) {
+        // Ignore errors, invite might already be used
+      }
+
+      toast.success('登录成功！')
+      router.push('/')
+      router.refresh()
+    } catch (error: any) {
+      console.error('Auto login failed:', error)
+      toast.error('自动登录失败，请重试')
     }
   }
 
@@ -121,12 +157,18 @@ function LoginForm() {
       return
     }
 
+    if (!name.trim()) {
+      toast.error('请输入姓名')
+      return
+    }
+
     setRegistering(true)
     try {
-      const response = await fetch('/api/invites/accept', {
+      // Use auto-login API which will create account and login
+      const response = await fetch('/api/invites/auto-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: inviteToken, name, password: registerPassword }),
+        body: JSON.stringify({ token: inviteToken, name: name.trim() }),
       })
 
       const data = await response.json()
@@ -135,22 +177,34 @@ function LoginForm() {
         throw new Error(data.error || 'Failed to create account')
       }
 
-      toast.success('Account created successfully! Logging in...')
+      toast.success('账号创建成功！正在登录...')
       
-      // Auto login after registration
+      // Auto login using inviteToken
       const result = await signIn('credentials', {
-        email,
-        password: registerPassword,
+        email: data.email,
+        password: '',
+        inviteToken: inviteToken,
         redirect: false,
       })
 
       if (result?.error) {
-        toast.error('Account created but login failed. Please try logging in.')
-        router.push('/login')
-      } else {
-        router.push('/')
-        router.refresh()
+        throw new Error('账号创建成功但登录失败')
       }
+
+      // Mark invite as used after successful login
+      try {
+        await fetch('/api/invites/accept-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: inviteToken }),
+        })
+      } catch (error) {
+        // Ignore errors, invite might already be used
+      }
+
+      toast.success('登录成功！')
+      router.push('/')
+      router.refresh()
     } catch (error: any) {
       toast.error(error.message || 'An error occurred. Please try again.')
     } finally {
@@ -227,23 +281,6 @@ function LoginForm() {
                   placeholder="Full Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="registerPassword" className="sr-only">
-                  Password
-                </label>
-                <input
-                  id="registerPassword"
-                  name="registerPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Password (min. 6 characters)"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
                 />
               </div>
             </div>

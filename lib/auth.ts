@@ -11,8 +11,55 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        inviteToken: { label: 'Invite Token', type: 'text' }, // For invite-based login
       },
       async authorize(credentials) {
+        // If inviteToken is provided, handle invite-based login (no password required)
+        if (credentials?.inviteToken && credentials?.email) {
+          const invite = await prisma.studentInvite.findUnique({
+            where: { token: credentials.inviteToken },
+          })
+
+          if (!invite) {
+            return null
+          }
+
+          // Verify email matches
+          if (invite.email !== credentials.email) {
+            return null
+          }
+
+          // Check if invite is valid
+          if (invite.usedAt || new Date() > invite.expiresAt) {
+            return null
+          }
+
+          // Get user (must exist, as auto-login API creates it first)
+          const user = await prisma.user.findUnique({
+            where: { email: invite.email },
+          })
+
+          if (!user) {
+            return null
+          }
+
+          // Mark invite as used (if not already used)
+          if (!invite.usedAt) {
+            await prisma.studentInvite.update({
+              where: { id: invite.id },
+              data: { usedAt: new Date() },
+            })
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          }
+        }
+
+        // Normal password-based login
         if (!credentials?.email || !credentials?.password) {
           return null
         }
