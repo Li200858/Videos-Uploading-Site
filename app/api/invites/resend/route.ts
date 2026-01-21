@@ -9,6 +9,18 @@ const resendSchema = z.object({
   inviteId: z.string(),
 })
 
+// Helper function to get base URL from request
+function getBaseUrl(request: Request): string {
+  // Try to get from environment variable first (for production)
+  if (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes('localhost')) {
+    return process.env.NEXTAUTH_URL
+  }
+  
+  // Otherwise, get from request URL
+  const url = new URL(request.url)
+  return `${url.protocol}//${url.host}`
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -44,8 +56,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate invite URL
-    const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/invite/${invite.token}`
+    // Generate invite URL - redirect to login page with email and token
+    const baseUrl = getBaseUrl(request)
+    const inviteUrl = `${baseUrl}/login?email=${encodeURIComponent(invite.email)}&token=${invite.token}`
 
     // Send email
     const emailResult = await sendInviteEmail({

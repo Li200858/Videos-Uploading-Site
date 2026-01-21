@@ -11,6 +11,18 @@ const inviteSchema = z.object({
   courseId: z.string(),
 })
 
+// Helper function to get base URL from request
+function getBaseUrl(request: Request): string {
+  // Try to get from environment variable first (for production)
+  if (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes('localhost')) {
+    return process.env.NEXTAUTH_URL
+  }
+  
+  // Otherwise, get from request URL
+  const url = new URL(request.url)
+  return `${url.protocol}//${url.host}`
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -49,7 +61,8 @@ export async function POST(request: Request) {
     })
 
     if (existingInvite) {
-      const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/invite/${existingInvite.token}`
+      const baseUrl = getBaseUrl(request)
+      const inviteUrl = `${baseUrl}/login?email=${encodeURIComponent(email)}&token=${existingInvite.token}`
       
       // Optionally resend email for existing invite
       const course = await prisma.course.findUnique({
@@ -93,8 +106,9 @@ export async function POST(request: Request) {
       },
     })
 
-    // Return invite with URL
-    const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/invite/${token}`
+    // Return invite with URL - redirect to login page with email and token
+    const baseUrl = getBaseUrl(request)
+    const inviteUrl = `${baseUrl}/login?email=${encodeURIComponent(email)}&token=${token}`
 
     console.log('Invite created:', { id: invite.id, email, courseId, inviteUrl })
 
@@ -163,9 +177,10 @@ export async function GET(request: Request) {
     })
 
     // Generate inviteUrl for each invite
+    const baseUrl = getBaseUrl(request)
     const invitesWithUrl = invites.map((invite) => ({
       ...invite,
-      inviteUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/invite/${invite.token}`,
+      inviteUrl: `${baseUrl}/login?email=${encodeURIComponent(invite.email)}&token=${invite.token}`,
     }))
 
     return NextResponse.json(invitesWithUrl)
