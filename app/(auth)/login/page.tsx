@@ -17,7 +17,6 @@ function LoginForm() {
   const [verifyingInvite, setVerifyingInvite] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
   const [name, setName] = useState('')
-  const [registerPassword, setRegisterPassword] = useState('')
   const [registering, setRegistering] = useState(false)
 
   // Check for invite token in URL
