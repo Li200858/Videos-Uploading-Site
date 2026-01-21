@@ -13,12 +13,21 @@ const inviteSchema = z.object({
 
 // Helper function to get base URL from request
 function getBaseUrl(request: Request): string {
-  // Try to get from environment variable first (for production)
+  // Priority 1: Use NEXTAUTH_URL if set and not localhost
   if (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes('localhost')) {
     return process.env.NEXTAUTH_URL
   }
   
-  // Otherwise, get from request URL
+  // Priority 2: Try to get from request headers (for production behind proxy)
+  const host = request.headers.get('host')
+  const protocol = request.headers.get('x-forwarded-proto') || 
+                   (request.url.startsWith('https') ? 'https' : 'http')
+  
+  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+    return `${protocol}://${host}`
+  }
+  
+  // Priority 3: Get from request URL
   const url = new URL(request.url)
   return `${url.protocol}//${url.host}`
 }
