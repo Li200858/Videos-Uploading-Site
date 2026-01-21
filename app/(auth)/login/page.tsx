@@ -59,8 +59,8 @@ function LoginForm() {
           // Account exists, auto-login immediately
           await handleAutoLogin(token, email)
         } else {
-          // Account doesn't exist, auto-create and login
-          await handleAutoCreateAndLogin(token, email)
+          // Account doesn't exist, show login form without password field
+          // User will click login button to auto-create account and login
         }
       } else {
         toast.error(data.error || '邀请链接无效')
@@ -166,6 +166,14 @@ function LoginForm() {
     setLoading(true)
 
     try {
+      // If this is an invite link and account doesn't exist, auto-create and login
+      if (inviteToken && inviteInfo && !inviteInfo.userExists) {
+        await handleAutoCreateAndLogin(inviteToken, email)
+        setLoading(false)
+        return
+      }
+
+      // Normal login flow
       const result = await signIn('credentials', {
         email,
         password,
@@ -359,9 +367,9 @@ function LoginForm() {
                   autoComplete="email"
                   required
                   disabled={!!inviteToken}
-                  className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm ${
-                    inviteToken ? 'bg-gray-100 text-gray-500' : ''
-                  }`}
+                  className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 ${
+                    inviteToken ? 'rounded-md bg-gray-100 text-gray-500' : 'rounded-t-md'
+                  } focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
                   placeholder="Email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -370,22 +378,24 @@ function LoginForm() {
                   <p className="mt-1 text-xs text-gray-500 px-3">邮箱已锁定（来自邀请链接）</p>
                 )}
               </div>
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+              {!inviteToken && (
+                <div>
+                  <label htmlFor="password" className="sr-only">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -394,7 +404,7 @@ function LoginForm() {
                 disabled={loading}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? (inviteToken ? '正在登录...' : 'Signing in...') : 'Sign in'}
               </button>
             </div>
           </form>
